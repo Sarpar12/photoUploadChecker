@@ -1,23 +1,44 @@
 import pyinotify, shutil # pip modules
 import fileupdate # own modules
 
-
+"""
+only two event that we need to care about
+"""
 class EventHandler(pyinotify.ProcessEvent):
     def process_IN_CREATE(self, event):
-        print(event)
+        print(event) # placeholder
+
+    def process_IN_DELETE(self, event):
+        print(event) # placeholder
 
 
-def copyFile(eventPath: str) -> bool:
-    newDirectory = fileupdate.getdirectories()[1]
+"""
+makes sure that only valid formats are copied
+"""
+def copyfilewrapper(eventpath: str) -> bool:
+    pathending = eventpath[eventpath.rindex("."):]
+    # RAW's, jpegs, and videos
+    acceptedending = ["dng", "jpg", "jpeg", "mp4"]
+    if pathending in acceptedending:
+        return copyfile(eventpath)
+    else:
+        return False
+
+
+"""
+copies the file from one place to another
+returns true if copled sucessfully
+"""
+def copyfile(eventpath: str) -> bool:
+    newdirectory = fileupdate.getdirectories()[1]
     try:
         """
         shutil.copy2() instead of copy() because
         copy() will overwrite, which isn't necessary
         """
-        shutil.copy2(eventPath, newDirectory)
+        shutil.copy2(eventpath, newdirectory)
         return True
     except shutil.SameFileError:
-        fileName = eventPath[eventPath.rindex("/")+1:]
-        folderName = newDirectory[newDirectory.rindex]
-        fileupdate.writelog(f"{fileName} already in {newDirectory}")
+        fileName = eventpath[eventpath.rindex("/")+1:]
+        fileupdate.writelog(f"{fileName} already in {newdirectory}")
         return False
