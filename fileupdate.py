@@ -1,6 +1,10 @@
 import json, os
 
-configFileName = 'config.json'
+
+configFileName = 'config/config.json'
+logFileName = 'config/log.txt'
+
+
 """
 checks if initial json exists
 """
@@ -30,3 +34,20 @@ def getdirectories() -> (str, str):
     with open(configFileName, 'r') as file:
         data = json.load(file)
     return (data['originalDirectory'], data['copyDirectory'])
+
+
+"""
+creates the log file if log file doesn't exist
+"""
+def createlog() -> None:
+    if not (os.path.exists(logFileName)):
+        with (open(logFileName, 'w')) as file:
+            file.write("Program Log:")
+
+
+"""
+writes to the log file with the specified messaage
+"""
+def writelog(message : str) -> None:
+    with open(logFileName, 'w') as file:
+        file.write(message + "\n")

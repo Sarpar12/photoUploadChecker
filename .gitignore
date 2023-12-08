@@ -1,2 +1,5 @@
 # Ignore venv files
 PhotoUploadProject*
+
+# Ignore VS code files
+*code-workspace
