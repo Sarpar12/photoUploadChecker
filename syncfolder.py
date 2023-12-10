@@ -56,6 +56,7 @@ def initfiles() -> None:
         fileupdate.createjson()
     fileupdate.initdb()
 
+
 """
 actual loop that checks for events and copies
 """

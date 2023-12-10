@@ -42,7 +42,7 @@ creates the log file if log file doesn't exist
 def createlog() -> None:
     if not (os.path.exists(logFileName)):
         with (open(logFileName, 'w')) as file:
-            file.write("Program Log:")
+            file.write("Program Log: \n")
 
 
 """
@@ -51,8 +51,8 @@ writes to the log file with the specified messaage
 def writelog(message : str) -> None:
     if not os.path.exists(logFileName):
         createlog()
-    with open(logFileName, 'w') as file:
-        errorTime = datetime.now().strftime('%m-%d %H:%M:%S')
+    with open(logFileName, 'a') as file:
+        errorTime = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
         file.write(f"{errorTime}: {message}\n")
 
 
