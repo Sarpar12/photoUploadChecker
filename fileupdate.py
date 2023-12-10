@@ -1,9 +1,7 @@
-import json, os, datetime
-
-
+import json, os, datetime, sqlite3
 configFileName = 'config/config.json'
 logFileName = 'config/log.txt'
-
+databaseFileName = 'config/database.db'
 
 """
 checks if initial json exists
@@ -56,3 +54,42 @@ def writelog(message : str) -> None:
     with open(logFileName, 'w') as file:
         errorTime = datetime.now().strftime('%m-%d %H:%M:%S')
         file.write(f"{errorTime}: {message}\n")
+
+
+"""
+creates the database, if it doesn't already exist
+returns true if created, else false
+"""
+def initdb() -> bool: 
+    if (os.path.exists(databaseFileName)): 
+        return False
+    else:
+        connection = sqlite3.connect(databaseFileName)
+        cursor = connection.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS file_info (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_first_seen TIMESTAMP,
+                filename TEXT,
+                uploaded_status TEXT,
+                date_uploaded TIMESTAMP,
+                is_deleted INTEGER DEFAULT 0
+            )
+        ''')
+        connection.commit()
+        connection.close()
+        return True
+
+
+"""
+adds an given file input to database upon IN_MOVE_TO
+"""
+def addoncreate(filename: str, dateSeen: str) -> bool:
+        connection = sqlite3.connect(databaseFileName)
+        cursor = connection.cursor()
+        cursor.execute('''
+            INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (dateSeen, filename, False, None, None))
+        connection.commit()
+        connection.close()

@@ -7,11 +7,11 @@ only two event that we need to care about
 """
 class EventHandler(pyinotify.ProcessEvent):
     def process_IN_DELETE(self, event):
-        print(f"File deleted: {event.pathname}") # placeholder
+        fileupdate.writelog(f"File deleted: {event.pathname}") # placeholder
 
     # IN_MOVE_TO is what gets the jpg/dng, not IN_CREATE
     def process_IN_MOVED_TO(self, event):
-        print(f"File created: {event.pathname}")
+        fileupdate.writelog(f"File created: {event.pathname}")
         copyfilewrapper(event.pathname)
 
 
@@ -20,7 +20,6 @@ makes sure that only valid formats are copied
 """
 def copyfilewrapper(eventpath: str) -> bool:
     pathending = eventpath[eventpath.rindex(".")+1:]
-    print(pathending)
     # RAW's, jpegs, and videos
     acceptedending = ["dng", "jpg", "jpeg", "mp4"]
     if pathending in acceptedending:
@@ -41,26 +40,28 @@ def copyfile(eventpath: str) -> bool:
         copy() will overwrite, which isn't necessary
         """
         shutil.copy2(eventpath, newdirectory)
+        fileupdate.writelog(f"File {fileName} copied to {newdirectory}")
         return True
     except shutil.SameFileError:
         fileName = eventpath[eventpath.rindex("/")+1:]
-        fileupdate.writelog(f"{fileName} already in {newdirectory}")
+        fileupdate.writelog(f"File {fileName} already in {newdirectory}")
         return False
 
 
 """
-creates the config on first run
+creates the config and database on first run
 """
-def loadconfig() -> None:
+def initfiles() -> None:
     if not (fileupdate.checkjson()):
         fileupdate.createjson()
-
+    fileupdate.initdb()
 
 """
 actual loop that checks for events and copies
 """
 def main():
-    loadconfig()
+    # Creates database, config, and log files
+    initfiles()
     # Initialize INotify
     wm = pyinotify.WatchManager()
     handler = EventHandler()
