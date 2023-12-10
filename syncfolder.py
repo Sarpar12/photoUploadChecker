@@ -34,17 +34,17 @@ returns true if copled sucessfully
 """
 def copyfile(eventpath: str) -> bool:
     newdirectory = fileupdate.getdirectories()[1]
+    filename = eventpath[eventpath.rindex("/")+1:]
     try:
         """
         shutil.copy2() instead of copy() because
         copy() will overwrite, which isn't necessary
         """
         shutil.copy2(eventpath, newdirectory)
-        fileupdate.writelog(f"File {fileName} copied to {newdirectory}")
+        fileupdate.writelog(f"File {eventpath} copied to {newdirectory}")
         return True
     except shutil.SameFileError:
-        fileName = eventpath[eventpath.rindex("/")+1:]
-        fileupdate.writelog(f"File {fileName} already in {newdirectory}")
+        fileupdate.writelog(f"File {filename} already in {newdirectory}")
         return False
 
 
