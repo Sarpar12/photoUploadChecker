@@ -9,3 +9,7 @@ This was made to work with syncthing, as bidirectional bridges will delete it of
 
 ## Requirements
 `pyinotify`: monitors the sync folder for new items
+
+## Run Instructions
+1. Download the project as a zip folder and extract.
+2. run syncfolder.py via `python syncfolder.py`
