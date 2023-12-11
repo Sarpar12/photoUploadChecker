@@ -1,6 +1,15 @@
 import json, os, datetime, sqlite3
 configFileName = 'config/config.json'
 logFileName = 'config/log.txt'
+
+"""
+database has atributes
+date_first_seen: | time when photo was uploaded to device running this program
+filename: name of the photo
+uploaded_status: default: 0 | is file uploaded
+date_uploaded: default: NULL | time api was checked for the photo
+is_deleted: default: 0 | if the photo/video is deleted from primary device
+"""
 databaseFileName = 'config/database.db'
 
 """
@@ -71,7 +80,7 @@ def initdb() -> bool:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 date_first_seen TIMESTAMP,
                 filename TEXT,
-                uploaded_status TEXT,
+                uploaded_status INTEGER DEFAULT 0,
                 date_uploaded TIMESTAMP,
                 is_deleted INTEGER DEFAULT 0
             )
@@ -84,12 +93,38 @@ def initdb() -> bool:
 """
 adds an given file input to database upon IN_MOVE_TO
 """
-def addoncreate(filename: str, dateSeen: str) -> bool:
+def addoncreate(filename: str,) -> bool:
+        dateseen = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
         connection = sqlite3.connect(databaseFileName)
         cursor = connection.cursor()
         cursor.execute('''
             INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
             VALUES (?, ?, ?, ?, ?)
-        ''', (dateSeen, filename, False, None, None))
+        ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
+        connection.commit()
+        connection.close()
+
+
+"""
+updates the database upon the upload of the file
+"""
+def updatedatabase(filename: str, deleted: bool) -> bool:
+    connection = sqlite3.connect(databaseFileName)
+    cursor = connection.cursor()
+    if deleted:
+        cursor.execute('''
+            UPDATE file_info
+            SET is_deleted = ?
+            WHERE filename = ?
+            ''', (1, filename))
+        connection.commit()
+        connection.close()
+    else:
+        timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
+        cursor.execute('''
+            UPDATE file_info
+            SET uploaded_status = ?, date_uploaded = ?
+            WHERE filename = ?
+        ''', (1, timecalled, filename))
         connection.commit()
         connection.close()

@@ -8,6 +8,8 @@ only two event that we need to care about
 class EventHandler(pyinotify.ProcessEvent):
     def process_IN_DELETE(self, event):
         fileupdate.writelog(f"File deleted: {event.pathname}") # placeholder
+        fileupdate.updatedatabase(parsefilename(event.pathname), True)
+        
 
     # IN_MOVE_TO is what gets the jpg/dng, not IN_CREATE
     def process_IN_MOVED_TO(self, event):
@@ -42,10 +44,30 @@ def copyfile(eventpath: str) -> bool:
         """
         shutil.copy2(eventpath, newdirectory)
         fileupdate.writelog(f"File {eventpath} copied to {newdirectory}")
+        fileupdate.addoncreate(filename)
         return True
     except shutil.SameFileError:
         fileupdate.writelog(f"File {filename} already in {newdirectory}")
         return False
+    
+
+"""
+gets the filename from pathname
+"""
+def parsefilename(pathname: str) -> str:
+    return pathname[pathname.rindex("/")+1:]
+
+
+"""
+converts from military time 24:00:00 to civilian time
+"""
+def converttime(time: str) -> str:
+    ending = "AM"
+    times = time.split(":")
+    if times[0] > 12:
+        times[0] = times[0] % 12
+        ending = "PM"
+    return f"{times[0]}:{times[1]}:{times[2]} {ending}"
 
 
 """
