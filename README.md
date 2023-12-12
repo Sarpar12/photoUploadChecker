@@ -1,4 +1,5 @@
 # Readme
+# Currently Not Finished
 
 ## What does this do? 
 If you have the specific usecase of sending your photos to another phone to upload to google photos, this will automatically delete photos for you by acting as the relay. 
