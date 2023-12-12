@@ -2,6 +2,7 @@ import json, os, datetime, sqlite3
 configFileName = 'config/config.json'
 logFileName = 'config/log.txt'
 
+
 """
 database has atributes
 date_first_seen: | time when photo was uploaded to device running this program
@@ -11,6 +12,7 @@ date_uploaded: default: NULL | time api was checked for the photo
 is_deleted: default: 0 | if the photo/video is deleted from primary device
 """
 databaseFileName = 'config/database.db'
+
 
 """
 checks if initial json exists
@@ -85,6 +87,7 @@ def initdb() -> bool:
                 is_deleted INTEGER DEFAULT 0
             )
         ''')
+        cursor.close()
         connection.commit()
         connection.close()
         return True
@@ -102,6 +105,7 @@ def addoncreate(filename: str,) -> bool:
             INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
             VALUES (?, ?, ?, ?, ?)
         ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
+        cursor.close()
         connection.commit()
         connection.close()
 
@@ -119,6 +123,7 @@ def updatedatabase(filename: str, deleted: bool) -> bool:
             SET is_deleted = ?
             WHERE filename = ?
             ''', (1, filename))
+        cursor.close()
         connection.commit()
         connection.close()
     else:
@@ -128,6 +133,7 @@ def updatedatabase(filename: str, deleted: bool) -> bool:
             SET uploaded_status = ?, date_uploaded = ?
             WHERE filename = ?
         ''', (1, timecalled, filename))
+        cursor.close()
         connection.commit()
         connection.close()
 
@@ -145,5 +151,6 @@ def cleardatabase():
          DELETE FROM file_info
          WHERE is_deleted = 1 AND uploaded_status = 0
     ''')
-    cursor.commit()
     cursor.close()
+    cursor.commit()
+    connection.close()
