@@ -92,6 +92,7 @@ def initdb() -> bool:
 
 """
 adds an given file input to database upon IN_MOVE_TO
+TODO: program will crash if database is accessed via sqlite3.connect(), fix
 """
 def addoncreate(filename: str,) -> bool:
         dateseen = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
@@ -107,6 +108,7 @@ def addoncreate(filename: str,) -> bool:
 
 """
 updates the database upon the upload of the file
+TODO: program will crash if database is accessed via sqlite3.connect(), fix
 """
 def updatedatabase(filename: str, deleted: bool) -> bool:
     connection = sqlite3.connect(databaseFileName)
@@ -128,3 +130,20 @@ def updatedatabase(filename: str, deleted: bool) -> bool:
         ''', (1, timecalled, filename))
         connection.commit()
         connection.close()
+
+
+"""
+This function will be manually called
+clears entries in the database that have the below flags set
+is_deleted = 1
+is_uploaded = 0
+"""
+def cleardatabase():
+    connection = sqlite3.connect(databaseFileName)
+    cursor = connection.cursor()
+    cursor.execute('''
+         DELETE FROM file_info
+         WHERE is_deleted = 1 AND uploaded_status = 0
+    ''')
+    cursor.commit()
+    cursor.close()
