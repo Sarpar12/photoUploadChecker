@@ -150,6 +150,7 @@ def parse_secrets() -> dict:
                 }
         except KeyError:
             print("Secrets file not found or created!")
+            return None
 
 
 def get_directories() -> (str, str):

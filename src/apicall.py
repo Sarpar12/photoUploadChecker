@@ -4,10 +4,8 @@ IMPORTANT REMINDER TO ME:
     **DO NOT** RUN IF A LOT OF PEOPLE CAN ACCESS THE SECRET KEY ON THE DEVICE
     POSSIBLY COULD LEAD TO TO STEALING OF CLIENT ID/SECRET
 """
-import json
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
-import google.oauth2.credentials
 from src import fileupdate
 
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary',
@@ -88,8 +86,8 @@ def check_photos(service, media_name_jpg: str, max_pages: int) -> bool:
             print(media_item.get('filename'))
             if not uploaded and media_item.get('filename') == media_name_jpg:
                 uploaded = True
-            else:
-                current_page += 1
+                break
+            current_page += 1
     return uploaded
 
 
