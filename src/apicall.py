@@ -46,9 +46,74 @@ def get_service(credentials):
     return build(API_SERVICE_NAME, API_VERSION, credentials = credentials, static_discovery=False)
 
 
-def list_albums(service):
+def list_albums(service) -> dict:
     """
-    gets the reponse
+    gets the the albums
+
+    Returns:
+    dict: dictionary of albums
     """
     response = service.albums().list().execute()
     return response
+
+
+def check_photos(service, media_name_jpg: str, max_pages: int) -> bool:
+    """
+    gets the photos
+
+    Params:
+    media_name_jpg: str -> the name(Title) of the photo to search for 
+    media_name_raw: same as above, but for the raws instead
+    max_pages: the amount of pages that should be looked through as a failsafe
+
+    Returns:
+    bool: uploaded
+    """
+    uploaded = False
+    page_size = 10 # the amount of photos to be returned at once
+    response = service.mediaItems().list(pageSize=page_size).execute()
+
+    # Searching for the picture within the max_pages
+    current_page = 0
+    while current_page <= max_pages:
+        if current_page == 0:
+            media_items = response.get('mediaItems')
+            next_token = response.get('nextPageToken')
+        else:
+            media_items = service.mediaItems().list(
+                pageSize=page_size,
+                pageToken=next_token
+                ).execute()
+        for media_item in media_items:
+            print(media_item.get('filename'))
+            if not uploaded and media_item.get('filename') == media_name_jpg:
+                uploaded = True
+            else:
+                current_page += 1
+    return uploaded
+
+
+def parse_data(name: str) -> (int, int, int):
+    """
+    takes an input name and parses the date     
+    ONLY WORKS FOR DEFAULT PIXEL PHOTO N
+
+    Params:
+    name: something like PXL_20231216_213618259.RAW-02.ORIGINAL.dng
+
+    Returns:
+    (int, int, int): a tuple of the year, month, and day
+    """
+    name = name[name.find("_")+1:]
+    name = name[:name.find("_")]
+    year = int(name[0:4])
+    month = name[4:6]
+    if month[0] == "0":
+        month = month[1]
+    month = int(month)
+    day = name[6:]
+    if day[0] == 0:
+        day = day[1]
+    day = int(day)
+    return (year, month, day)
+                
