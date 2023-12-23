@@ -114,6 +114,18 @@ def token_exists() -> bool:
         return len(data) == 4
 
 
+def get_secrets() -> str:
+    """
+    gets the location on the secrets file
+
+    Returns:
+    str: absolute path of the secrets file
+    """
+    with open(CONFIG_FILE_NAME, 'r', encoding='utf-8')as file:
+        data = json.load(file)
+        return data["secrets"]
+
+
 def parse_secrets() -> dict:
     """
     returns all the values of the secrets key
