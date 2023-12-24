@@ -4,9 +4,12 @@ PhotoUploadProject*
 # Ignore VS code files
 *code-workspace
 
-# Ignore Config/log files
+# Ignore config/log files
 log*
 config*
 
 # Ignore python cache files
 *pycache*
+
+# Ignore Test Files
+*test*
