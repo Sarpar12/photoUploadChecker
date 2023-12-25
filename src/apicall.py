@@ -55,7 +55,7 @@ def list_albums(service) -> dict:
     return response
 
 
-def check_photos(service, media_name_jpg: str, max_pages: int) -> bool:
+def check_photo(service, media_name_jpg: str, max_pages: int) -> bool:
     """
     gets the photos
 
@@ -114,4 +114,37 @@ def parse_data(name: str) -> (int, int, int):
         day = day[1]
     day = int(day)
     return (year, month, day)
-                
+
+
+def check_files(files: list(str), service) -> None:
+    """
+    takes a list of files and returns a list of booleans
+    that for each file, return true or false
+
+    Params:
+    list(str): a list of any size that is the list of files to check
+
+    Returns:
+    list((str, bool): a tuple of the filename and the boolean
+                      the boolean is true if the file is uploaded
+    """
+    list_service_filenames = []
+    page_size = 25 # the amount of photos to be returned at once
+    max_pages = 2
+    response = service.mediaItems().list(pageSize=page_size).execute()
+    current_page = 0
+    # Loop to list all filesnames within the first x amount of pages
+    while current_page <= max_pages:
+        if current_page == 0:
+            media_items = response.get('mediaItems')
+            next_token = response.get('nextPageToken')
+        else:
+            media_items = service.mediaItems().list(
+                pageSize=page_size,
+                pageToken=next_token
+                ).execute()
+        for media_item in media_items:
+            list_service_filenames.append(media_item.get('filename'))
+    for filename in files:
+        if filename in list_service_filenames:
+            fileupdate.update_database(filename, False)

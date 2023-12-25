@@ -299,8 +299,8 @@ def get_not_uploaded():
             WHERE uploaded_status = 0
         ''')
         unuploaded_files = cursor.fetchall()
-        return unuploaded_files
     finally:
         # Close the cursor and connection
         cursor.close()
         connection.close()
+    return unuploaded_files
