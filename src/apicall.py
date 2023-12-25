@@ -6,6 +6,7 @@ IMPORTANT REMINDER TO ME:
 """
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 from src import fileupdate
 
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary',
@@ -148,3 +149,17 @@ def check_files(files: list(str), service) -> None:
     for filename in files:
         if filename in list_service_filenames:
             fileupdate.update_database(filename, False)
+
+
+def convert_credential(filename: str) -> Credentials:
+    """
+    converts the dictionary from fileupdate into the credentials object
+
+    Params:
+    filename: str of the filename
+
+    Returns:
+    Credentials: a credentials object
+    """
+    credential = Credentials.from_authorized_user_file(filename)
+    return credential

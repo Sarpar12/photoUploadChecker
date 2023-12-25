@@ -45,7 +45,8 @@ def create_json() -> None:
     config = {
             "originalDirectory" : loaddirectory, 
             "copyDirectory" : copydirectory,
-            "secrets" : secretslocation
+            "secrets" : secretslocation,
+            "credential": ""
         }
     with open(CONFIG_FILE_NAME, 'w', encoding='utf-8') as file:
         json.dump(config, file, indent=2)
@@ -63,7 +64,7 @@ def change_copy(newdirectory: str) -> None:
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
-        
+
 def change_original(newdirectory: str) -> None:
     """
     Changes the original directory in the config
@@ -75,6 +76,37 @@ def change_original(newdirectory: str) -> None:
         data["originalDirectory"] = newdirectory
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
+
+
+def write_token(credential) -> None:
+    """
+    writes the credentials into a json file.
+    Also updates config.json
+
+    Params:
+    credentials: the credentials from flow
+
+    Returns: None
+    """
+    filename = 'config/credentials.json'
+    with open(filename, 'w', encoding='utf-8') as token_file:
+        token_file.write(credential.to_json())
+    with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
+        data = json.load(file)
+        data["credential"] = 'config/credentials.json'
+    with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
+        json.dump(data, newfile, indent=2)
+
+
+def get_credential() -> dict:
+    """"
+    gets the credentials file
+    
+    Returns: dictionary version of the json file
+    """
+    with open(CONFIG_FILE_NAME, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+        return data["credential"]
 
 
 def get_secrets() -> str:
@@ -226,7 +258,7 @@ def update_database(filename: str, deleted: bool) -> None:
         connection.close()
 
 
-def clear_database() -> None:
+def clear_deleted_images() -> None:
     """
     This function will be manually called and clears entries in the database 
     that have the below flags set
@@ -240,6 +272,23 @@ def clear_database() -> None:
          DELETE FROM file_info
          WHERE is_deleted = 1 AND uploaded_status = 0
     ''')
+    cursor.close()
+    cursor.commit()
+    connection.close()
+
+
+def clear_invalid_entries(id_delete: int) -> None:
+    """
+    deletes entries specified by the ID
+
+    Returns: None
+    """
+    connection = sqlite3.connect(DATABASE_FILE_NAME)
+    cursor = connection.cursor()
+    cursor.execute('''
+         DELETE FROM file_info
+         WHERE id = ?
+    ''', (id_delete))
     cursor.close()
     cursor.commit()
     connection.close()
