@@ -63,7 +63,7 @@ def change_copy(newdirectory: str) -> None:
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
-
+        
 def change_original(newdirectory: str) -> None:
     """
     Changes the original directory in the config
@@ -75,43 +75,6 @@ def change_original(newdirectory: str) -> None:
         data["originalDirectory"] = newdirectory
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
-
-
-def add_token(token: str) -> None:
-    """
-    adds the authorization token in the config
-
-    Returns: None
-    """
-    with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
-        data = json.load(file)
-        data["authtoken"] = token
-    with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
-        json.dump(data, newfile, indent=2)
-
-
-def get_auth_token() -> str:
-    """
-    gets the auth token
-
-    Returns:
-    str: auth token
-    """
-    with (open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
-        data = json.load(file)
-        return data["authtoken"]
-
-# token is the 4th key, so thats the check
-def token_exists() -> bool:
-    """
-    Checks if token exists
-
-    Returns: 
-    bool: True if token exists, otherwise False
-    """
-    with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
-        data = json.load(file)
-        return len(data) == 4
 
 
 def get_secrets() -> str:
