@@ -7,6 +7,9 @@ IMPORTANT REMINDER TO ME:
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
+import google.auth.transport.requests
+# pylint: disable=unused-import
+import requests
 from src import fileupdate
 
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary',
@@ -162,4 +165,19 @@ def convert_credential(filename: str) -> Credentials:
     Credentials: a credentials object
     """
     credential = Credentials.from_authorized_user_file(filename)
+    return credential
+
+
+def refresh_token(credential: Credentials) -> Credentials:
+    """
+    refreshes the token if it detects it's invalid or None
+
+    Params:
+    invalid_credential: an instance of the Crendentials that is expired
+
+    Returns:
+    Credentials: new, unexpired credentials
+    """
+    request = google.auth.transport.requests.Request()
+    credential.refresh(request)
     return credential
