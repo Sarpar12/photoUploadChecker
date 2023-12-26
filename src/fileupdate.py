@@ -78,7 +78,7 @@ def change_original(newdirectory: str) -> None:
         json.dump(data, newfile, indent=2)
 
 
-def write_token(credential) -> None:
+def write_credential(credential) -> None:
     """
     writes the credentials into a json file.
     Also updates config.json
@@ -195,19 +195,23 @@ def init_db() -> bool:
         return False
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS file_info (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date_first_seen TIMESTAMP,
-            filename TEXT,
-            uploaded_status INTEGER DEFAULT 0,
-            date_uploaded TIMESTAMP,
-            is_deleted INTEGER DEFAULT 0
-        )
-    ''')
-    cursor.close()
-    connection.commit()
-    connection.close()
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS file_info (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_first_seen TIMESTAMP,
+                filename TEXT,
+                uploaded_status INTEGER DEFAULT 0,
+                date_uploaded TIMESTAMP,
+                is_deleted INTEGER DEFAULT 0
+            )
+        ''')
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
     return True
 
 
@@ -220,13 +224,17 @@ def add_on_create(filename: str,) -> None:
     dateseen = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    cursor.execute('''
-        INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
-    cursor.close()
-    connection.commit()
-    connection.close()
+    try:
+        cursor.execute('''
+            INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
 def update_database(filename: str, deleted: bool) -> None:
@@ -237,22 +245,23 @@ def update_database(filename: str, deleted: bool) -> None:
     """
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    if deleted:
-        cursor.execute('''
-            UPDATE file_info
-            SET is_deleted = ?
-            WHERE filename = ?
-            ''', (1, filename))
-        cursor.close()
-        connection.commit()
-        connection.close()
-    else:
-        timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
-        cursor.execute('''
-            UPDATE file_info
-            SET uploaded_status = ?, date_uploaded = ?
-            WHERE filename = ?
-        ''', (1, timecalled, filename))
+    try:
+        if deleted:
+            cursor.execute('''
+                UPDATE file_info
+                SET is_deleted = ?
+                WHERE filename = ?
+                ''', (1, filename))
+        else:
+            timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
+            cursor.execute('''
+                UPDATE file_info
+                SET uploaded_status = ?, date_uploaded = ?
+                WHERE filename = ?
+            ''', (1, timecalled, filename))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
         cursor.close()
         connection.commit()
         connection.close()
@@ -266,15 +275,19 @@ def clear_deleted_images() -> None:
 
     Returns: None
     """
-    connection = sqlite3.connect(DATABASE_FILE_NAME)
-    cursor = connection.cursor()
-    cursor.execute('''
-         DELETE FROM file_info
-         WHERE is_deleted = 1 AND uploaded_status = 0
-    ''')
-    cursor.close()
-    cursor.commit()
-    connection.close()
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
+        cursor.execute('''
+            DELETE FROM file_info
+            WHERE is_deleted = 1 AND uploaded_status = 0
+        ''')
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
 def clear_invalid_entries(id_delete: int) -> None:
@@ -283,15 +296,19 @@ def clear_invalid_entries(id_delete: int) -> None:
 
     Returns: None
     """
-    connection = sqlite3.connect(DATABASE_FILE_NAME)
-    cursor = connection.cursor()
-    cursor.execute('''
-         DELETE FROM file_info
-         WHERE id = ?
-    ''', (id_delete))
-    cursor.close()
-    cursor.commit()
-    connection.close()
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
+        cursor.execute('''
+             DELETE FROM file_info
+             WHERE id = ?
+        ''', (id_delete))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
 def get_not_uploaded():
@@ -311,6 +328,8 @@ def get_not_uploaded():
             WHERE uploaded_status = 0
         ''')
         unuploaded_files = cursor.fetchall()
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
     finally:
         # Close the cursor and connection
         cursor.close()
