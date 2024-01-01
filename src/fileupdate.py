@@ -311,7 +311,7 @@ def clear_invalid_entries(id_delete: int) -> None:
         connection.close()
 
 
-def get_not_uploaded():
+def get_not_uploaded() -> [[(str)]]:
     """
     every time that this function is called, it will return a list of items in the
     database with is_uploaded = 0
@@ -321,17 +321,39 @@ def get_not_uploaded():
     """
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
+    filenames = []
     try:
         # Fetch items with uploaded_status = 0
         cursor.execute('''
-            SELECT * FROM file_info
+            SELECT filename FROM file_info
             WHERE uploaded_status = 0
         ''')
-        unuploaded_files = cursor.fetchall()
+        filenames.append(cursor.fetchall())
     except sqlite3.OperationalError:
         write_log("ERROR: Database locked!")
     finally:
         # Close the cursor and connection
         cursor.close()
         connection.close()
-    return unuploaded_files
+    return filenames
+
+
+def get_unuploaded() -> [str]:
+    """
+    a wrapper function for get_not_uploaded(), 
+    which converts the list of list of tuples 
+    in get_not_uploaded() into a list(str)
+
+    Returns:
+    list(str): list of filenames - str, str, str, etc
+               raw ending will not be included if a raw isn't found
+    """
+    # Strips the first list out, leaving a list(tuple)
+    # instead of a list(list(tuple))
+    filenames = get_not_uploaded()[0]
+    new_filenames = []
+    for filename in filenames:
+        new_name = filename[0][0: filename[0].find('-')]
+        if not new_name in new_filenames:
+            new_filenames.append(new_name)
+    return new_filenames

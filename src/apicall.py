@@ -1,4 +1,7 @@
 """
+contains all the methods that require the use of an API 
+or anything related to google's OAuth2.0
+
 IMPORTANT REMINDER TO ME: 
     THIS PROGRAM IS MEANT TO RUN ON A MACHINE WITHOUT GENERAL ACCESS
     **DO NOT** RUN IF A LOT OF PEOPLE CAN ACCESS THE SECRET KEY ON THE DEVICE
@@ -132,6 +135,7 @@ def check_files(files: list(str), service) -> None:
     list((str, bool): a tuple of the filename and the boolean
                       the boolean is true if the file is uploaded
     """
+    file_endings = ["-01.COVER.jpg", "-02.ORIGINAL.dng"]
     list_service_filenames = []
     page_size = 25 # the amount of photos to be returned at once
     max_pages = 2
@@ -150,7 +154,9 @@ def check_files(files: list(str), service) -> None:
         for media_item in media_items:
             list_service_filenames.append(media_item.get('filename'))
     for filename in files:
+        filename = filename + file_endings[0]
         if filename in list_service_filenames:
+            print(f"Filename: {filename}")
             fileupdate.update_database(filename, False)
 
 
@@ -181,3 +187,24 @@ def refresh_token(credential: Credentials) -> Credentials:
     request = google.auth.transport.requests.Request()
     credential.refresh(request)
     return credential
+
+
+def main() -> None:
+    """
+    the main loop called every x minutes
+
+    Returns: None
+    """
+    # Checking if credential already exists
+    try:
+        credentials = convert_credential(fileupdate.get_credential())
+    except KeyError:
+        credentials = get_credentials()
+        fileupdate.write_credential(credentials)
+    # Checking if credentials are valid
+    if credentials is None or credentials.invalid:
+        credentials = refresh_token(credentials)
+    service = get_service(credentials)
+    # Actually checking if the files are uploaded
+    files_to_check = fileupdate.get_unuploaded()
+    check_files(files_to_check, service)
