@@ -22,7 +22,7 @@ class EventHandler(pyinotify.ProcessEvent):
         Returns: None
         """
         fileupdate.write_log(f"File deleted: {event.pathname}") # placeholder
-        fileupdate.update_database(parse_file_name(event.pathname), True)
+        fileupdate.update_deleted(parse_file_name(event.pathname))
 
 
     # pylint: disable=invalid-name
