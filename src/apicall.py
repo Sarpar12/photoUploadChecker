@@ -11,6 +11,8 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 import google.auth.transport.requests
+# Used in the code snippet from the below uri, I disabled it
+# https://google-auth.readthedocs.io/en/latest/reference/google.auth.transport.requests.html
 # pylint: disable=unused-import
 import requests
 from src import fileupdate
@@ -54,6 +56,9 @@ def get_service(credentials):
 def list_albums(service) -> dict:
     """
     gets the the albums
+
+    Params:
+    service: the service used to get the response
 
     Returns:
     dict: dictionary of albums
@@ -123,19 +128,19 @@ def parse_data(name: str) -> (int, int, int):
     return (year, month, day)
 
 
-def check_files(files: list(str), service) -> None:
+def check_files(files: [str], ending: [str], service) -> None:
     """
     takes a list of files and returns a list of booleans
     that for each file, return true or false
 
     Params:
-    list(str): a list of any size that is the list of files to check
+    files: list(str) - list of files to check
+    ending: list(str) - list of endings for the files
 
     Returns:
     list((str, bool): a tuple of the filename and the boolean
                       the boolean is true if the file is uploaded
     """
-    file_endings = ["-01.COVER.jpg", "-02.ORIGINAL.dng"]
     list_service_filenames = []
     page_size = 25 # the amount of photos to be returned at once
     max_pages = 2
@@ -147,17 +152,21 @@ def check_files(files: list(str), service) -> None:
             media_items = response.get('mediaItems')
             next_token = response.get('nextPageToken')
         else:
-            media_items = service.mediaItems().list(
+            response = service.mediaItems().list(
                 pageSize=page_size,
                 pageToken=next_token
                 ).execute()
+            media_items = response.get('mediaItems')
+            next_token = response.get('nextPageToken')
         for media_item in media_items:
             list_service_filenames.append(media_item.get('filename'))
+        current_page += 1
     for filename in files:
-        filename = filename + file_endings[0]
-        if filename in list_service_filenames:
-            print(f"Filename: {filename}")
-            fileupdate.update_database(filename, False)
+        filenames = [filename + end for end in ending]
+        for new_filename in filenames:
+            if new_filename in list_service_filenames:
+                print(f"Filename: {new_filename}")
+                fileupdate.update_uploaded(filename, ending)
 
 
 def convert_credential(filename: str) -> Credentials:
@@ -198,13 +207,18 @@ def main() -> None:
     # Checking if credential already exists
     try:
         credentials = convert_credential(fileupdate.get_credential())
+        fileupdate.write_log("Credentials Read!")
     except KeyError:
         credentials = get_credentials()
+        fileupdate.write_log("OAuth authorized")
         fileupdate.write_credential(credentials)
+        fileupdate.write_log("Crendentials written")
     # Checking if credentials are valid
-    if credentials is None or credentials.invalid:
+    if credentials is None or not credentials.valid:
         credentials = refresh_token(credentials)
+        fileupdate.write_log("Credentials Refreshed!")
     service = get_service(credentials)
     # Actually checking if the files are uploaded
     files_to_check = fileupdate.get_unuploaded()
-    check_files(files_to_check, service)
+    check_files(files_to_check[0], files_to_check[1], service)
+    fileupdate.write_log("Check Ran")

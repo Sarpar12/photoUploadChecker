@@ -52,28 +52,35 @@ def create_json() -> None:
         json.dump(config, file, indent=2)
 
 
-def change_copy(newdirectory: str) -> None:
+def change_copy(new_directory: str) -> None:
     """
     Changes the copy directory in the config
+
+    Params:
+    new_directory: string - input for new path for the copied images
 
     Returns: None
     """
     with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
         data = json.load(file)
-        data["copyDirectory"] = newdirectory
+        data["copyDirectory"] = new_directory
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
 
-def change_original(newdirectory: str) -> None:
+def change_original(new_directory: str) -> None:
     """
     Changes the original directory in the config
+
+    Params:
+    new_directory: string - input for new path for the original images
 
     Returns: None
     """
     with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
         data = json.load(file)
-        data["originalDirectory"] = newdirectory
+        data["originalDirectory"] = new_directory
+        file.close()
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
@@ -175,6 +182,9 @@ def write_log(message : str) -> None:
     """
     writes to the log file with the specified messaage
 
+    Params:
+    message: str input to write to log
+
     Returns: None
     """
     if not os.path.exists(LOG_FILE_NAME):
@@ -237,28 +247,53 @@ def add_on_create(filename: str,) -> None:
         connection.close()
 
 
-def update_database(filename: str, deleted: bool) -> None:
+def update_deleted(filename: str) -> None:
     """
-    updates the database upon the upload of the file
+    updates the database upon the deletion of file
+
+    Params:
+    filename: the name of the file that was deleted
 
     Returns: None
     """
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
     try:
-        if deleted:
-            cursor.execute('''
-                UPDATE file_info
-                SET is_deleted = ?
-                WHERE filename = ?
-                ''', (1, filename))
-        else:
-            timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
+        cursor.execute('''
+            UPDATE file_info
+            SET is_deleted = ?
+            WHERE filename = ?
+            ''', (1, filename))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
+
+
+def update_uploaded(filename_fragment: str, ending: [str]) -> None:
+    """
+    updates database when file is uploaded
+    assume that the raw's are uploaded if the cover image exists
+    
+    Params:
+    filename_fragment: string - filename cut off after the numbers
+    ending: list of strings - a list of possible filename endings
+
+    Returns: None
+    """
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
+        timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
+        for end in ending:
+            new_filename = filename_fragment + end
             cursor.execute('''
                 UPDATE file_info
                 SET uploaded_status = ?, date_uploaded = ?
                 WHERE filename = ?
-            ''', (1, timecalled, filename))
+            ''', (1, timecalled, new_filename))
     except sqlite3.OperationalError:
         write_log("ERROR: Database locked!")
     finally:
@@ -293,6 +328,9 @@ def clear_deleted_images() -> None:
 def clear_invalid_entries(id_delete: int) -> None:
     """
     deletes entries specified by the ID
+
+    Params:
+    id: int - the id in the database to be deleted
 
     Returns: None
     """
@@ -338,22 +376,26 @@ def get_not_uploaded() -> [[(str)]]:
     return filenames
 
 
-def get_unuploaded() -> [str]:
+def get_unuploaded() -> ([str], [str]):
     """
     a wrapper function for get_not_uploaded(), 
     which converts the list of list of tuples 
     in get_not_uploaded() into a list(str)
 
     Returns:
-    list(str): list of filenames - str, str, str, etc
-               raw ending will not be included if a raw isn't found
+    ([str], [str]): a tuple of a list of filenames - str, str, str, etc
+                    and a list of file endings
     """
     # Strips the first list out, leaving a list(tuple)
     # instead of a list(list(tuple))
     filenames = get_not_uploaded()[0]
+    file_endings = []
     new_filenames = []
     for filename in filenames:
         new_name = filename[0][0: filename[0].find('-')]
+        ending = filename[0][filename[0].find('-'):]
         if not new_name in new_filenames:
             new_filenames.append(new_name)
-    return new_filenames
+        if not ending in file_endings:
+            file_endings.append(ending)
+    return (new_filenames, file_endings)
