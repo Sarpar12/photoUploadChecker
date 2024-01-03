@@ -45,73 +45,75 @@ def create_json() -> None:
     config = {
             "originalDirectory" : loaddirectory, 
             "copyDirectory" : copydirectory,
-            "secrets" : secretslocation
+            "secrets" : secretslocation,
+            "credential": ""
         }
     with open(CONFIG_FILE_NAME, 'w', encoding='utf-8') as file:
         json.dump(config, file, indent=2)
 
 
-def change_copy(newdirectory: str) -> None:
+def change_copy(new_directory: str) -> None:
     """
     Changes the copy directory in the config
 
+    Params:
+    new_directory: string - input for new path for the copied images
+
     Returns: None
     """
     with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
         data = json.load(file)
-        data["copyDirectory"] = newdirectory
+        data["copyDirectory"] = new_directory
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
 
-def change_original(newdirectory: str) -> None:
+def change_original(new_directory: str) -> None:
     """
     Changes the original directory in the config
 
-    Returns: None
-    """
-    with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
-        data = json.load(file)
-        data["originalDirectory"] = newdirectory
-    with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
-        json.dump(data, newfile, indent=2)
-
-
-def add_token(token: str) -> None:
-    """
-    adds the authorization token in the config
+    Params:
+    new_directory: string - input for new path for the original images
 
     Returns: None
     """
     with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
         data = json.load(file)
-        data["authtoken"] = token
+        data["originalDirectory"] = new_directory
+        file.close()
     with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
         json.dump(data, newfile, indent=2)
 
 
-def get_auth_token() -> str:
+def write_credential(credential) -> None:
     """
-    gets the auth token
+    writes the credentials into a json file.
+    Also updates config.json
 
-    Returns:
-    str: auth token
-    """
-    with (open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
-        data = json.load(file)
-        return data["authtoken"]
+    Params:
+    credentials: the credentials from flow
 
-# token is the 4th key, so thats the check
-def token_exists() -> bool:
+    Returns: None
     """
-    Checks if token exists
-
-    Returns: 
-    bool: True if token exists, otherwise False
-    """
+    filename = 'config/credentials.json'
+    with open(filename, 'w', encoding='utf-8') as token_file:
+        token_file.write(credential.to_json())
     with(open(CONFIG_FILE_NAME, 'r', encoding='utf-8')) as file:
         data = json.load(file)
-        return len(data) == 4
+        data["credential"] = 'config/credentials.json'
+    with(open(CONFIG_FILE_NAME, 'w', encoding='utf-8')) as newfile:
+        json.dump(data, newfile, indent=2)
+
+
+def get_credential() -> dict:
+    """"
+    gets the credentials file
+    
+    Returns: dictionary version of the json file
+    """
+    with open(CONFIG_FILE_NAME, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+        return data["credential"]
 
 
 def get_secrets() -> str:
@@ -180,6 +182,9 @@ def write_log(message : str) -> None:
     """
     writes to the log file with the specified messaage
 
+    Params:
+    message: str input to write to log
+
     Returns: None
     """
     if not os.path.exists(LOG_FILE_NAME):
@@ -200,19 +205,23 @@ def init_db() -> bool:
         return False
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS file_info (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            date_first_seen TIMESTAMP,
-            filename TEXT,
-            uploaded_status INTEGER DEFAULT 0,
-            date_uploaded TIMESTAMP,
-            is_deleted INTEGER DEFAULT 0
-        )
-    ''')
-    cursor.close()
-    connection.commit()
-    connection.close()
+    try:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS file_info (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date_first_seen TIMESTAMP,
+                filename TEXT,
+                uploaded_status INTEGER DEFAULT 0,
+                date_uploaded TIMESTAMP,
+                is_deleted INTEGER DEFAULT 0
+            )
+        ''')
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
     return True
 
 
@@ -225,45 +234,75 @@ def add_on_create(filename: str,) -> None:
     dateseen = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    cursor.execute('''
-        INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
-    cursor.close()
-    connection.commit()
-    connection.close()
+    try:
+        cursor.execute('''
+            INSERT INTO file_info (date_first_seen, filename, uploaded_status, date_uploaded, is_deleted)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (dateseen, filename, 0, None, 0)) # 0 -> false, None = NULL
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
-def update_database(filename: str, deleted: bool) -> None:
+def update_deleted(filename: str) -> None:
     """
-    updates the database upon the upload of the file
+    updates the database upon the deletion of file
+
+    Params:
+    filename: the name of the file that was deleted
 
     Returns: None
     """
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
-    if deleted:
+    try:
         cursor.execute('''
             UPDATE file_info
             SET is_deleted = ?
             WHERE filename = ?
             ''', (1, filename))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
         cursor.close()
         connection.commit()
         connection.close()
-    else:
+
+
+def update_uploaded(filename_fragment: str, ending: [str]) -> None:
+    """
+    updates database when file is uploaded
+    assume that the raw's are uploaded if the cover image exists
+    
+    Params:
+    filename_fragment: string - filename cut off after the numbers
+    ending: list of strings - a list of possible filename endings
+
+    Returns: None
+    """
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
         timecalled = datetime.datetime.now().strftime('%m-%d %H:%M:%S')
-        cursor.execute('''
-            UPDATE file_info
-            SET uploaded_status = ?, date_uploaded = ?
-            WHERE filename = ?
-        ''', (1, timecalled, filename))
+        for end in ending:
+            new_filename = filename_fragment + end
+            cursor.execute('''
+                UPDATE file_info
+                SET uploaded_status = ?, date_uploaded = ?
+                WHERE filename = ?
+            ''', (1, timecalled, new_filename))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
         cursor.close()
         connection.commit()
         connection.close()
 
 
-def clear_database() -> None:
+def clear_deleted_images() -> None:
     """
     This function will be manually called and clears entries in the database 
     that have the below flags set
@@ -271,18 +310,46 @@ def clear_database() -> None:
 
     Returns: None
     """
-    connection = sqlite3.connect(DATABASE_FILE_NAME)
-    cursor = connection.cursor()
-    cursor.execute('''
-         DELETE FROM file_info
-         WHERE is_deleted = 1 AND uploaded_status = 0
-    ''')
-    cursor.close()
-    cursor.commit()
-    connection.close()
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
+        cursor.execute('''
+            DELETE FROM file_info
+            WHERE is_deleted = 1 AND uploaded_status = 0
+        ''')
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
 
 
-def get_not_uploaded():
+def clear_invalid_entries(id_delete: int) -> None:
+    """
+    deletes entries specified by the ID
+
+    Params:
+    id: int - the id in the database to be deleted
+
+    Returns: None
+    """
+    try:
+        connection = sqlite3.connect(DATABASE_FILE_NAME)
+        cursor = connection.cursor()
+        cursor.execute('''
+             DELETE FROM file_info
+             WHERE id = ?
+        ''', (id_delete))
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
+    finally:
+        cursor.close()
+        connection.commit()
+        connection.close()
+
+
+def get_not_uploaded() -> [[(str)]]:
     """
     every time that this function is called, it will return a list of items in the
     database with is_uploaded = 0
@@ -292,15 +359,43 @@ def get_not_uploaded():
     """
     connection = sqlite3.connect(DATABASE_FILE_NAME)
     cursor = connection.cursor()
+    filenames = []
     try:
         # Fetch items with uploaded_status = 0
         cursor.execute('''
-            SELECT * FROM file_info
+            SELECT filename FROM file_info
             WHERE uploaded_status = 0
         ''')
-        unuploaded_files = cursor.fetchall()
-        return unuploaded_files
+        filenames.append(cursor.fetchall())
+    except sqlite3.OperationalError:
+        write_log("ERROR: Database locked!")
     finally:
         # Close the cursor and connection
         cursor.close()
         connection.close()
+    return filenames
+
+
+def get_unuploaded() -> ([str], [str]):
+    """
+    a wrapper function for get_not_uploaded(), 
+    which converts the list of list of tuples 
+    in get_not_uploaded() into a list(str)
+
+    Returns:
+    ([str], [str]): a tuple of a list of filenames - str, str, str, etc
+                    and a list of file endings
+    """
+    # Strips the first list out, leaving a list(tuple)
+    # instead of a list(list(tuple))
+    filenames = get_not_uploaded()[0]
+    file_endings = []
+    new_filenames = []
+    for filename in filenames:
+        new_name = filename[0][0: filename[0].find('-')]
+        ending = filename[0][filename[0].find('-'):]
+        if not new_name in new_filenames:
+            new_filenames.append(new_name)
+        if not ending in file_endings:
+            file_endings.append(ending)
+    return (new_filenames, file_endings)

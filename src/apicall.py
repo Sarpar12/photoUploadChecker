@@ -1,4 +1,7 @@
 """
+contains all the methods that require the use of an API 
+or anything related to google's OAuth2.0
+
 IMPORTANT REMINDER TO ME: 
     THIS PROGRAM IS MEANT TO RUN ON A MACHINE WITHOUT GENERAL ACCESS
     **DO NOT** RUN IF A LOT OF PEOPLE CAN ACCESS THE SECRET KEY ON THE DEVICE
@@ -6,6 +9,12 @@ IMPORTANT REMINDER TO ME:
 """
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
+import google.auth.transport.requests
+# Used in the code snippet from the below uri, I disabled it
+# https://google-auth.readthedocs.io/en/latest/reference/google.auth.transport.requests.html
+# pylint: disable=unused-import
+import requests
 from src import fileupdate
 
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary',
@@ -48,6 +57,9 @@ def list_albums(service) -> dict:
     """
     gets the the albums
 
+    Params:
+    service: the service used to get the response
+
     Returns:
     dict: dictionary of albums
     """
@@ -55,7 +67,7 @@ def list_albums(service) -> dict:
     return response
 
 
-def check_photos(service, media_name_jpg: str, max_pages: int) -> bool:
+def check_photo(service, media_name_jpg: str, max_pages: int) -> bool:
     """
     gets the photos
 
@@ -114,4 +126,99 @@ def parse_data(name: str) -> (int, int, int):
         day = day[1]
     day = int(day)
     return (year, month, day)
-                
+
+
+def check_files(files: [str], ending: [str], service) -> None:
+    """
+    takes a list of files and returns a list of booleans
+    that for each file, return true or false
+
+    Params:
+    files: list(str) - list of files to check
+    ending: list(str) - list of endings for the files
+
+    Returns:
+    list((str, bool): a tuple of the filename and the boolean
+                      the boolean is true if the file is uploaded
+    """
+    list_service_filenames = []
+    page_size = 25 # the amount of photos to be returned at once
+    max_pages = 2
+    response = service.mediaItems().list(pageSize=page_size).execute()
+    current_page = 0
+    # Loop to list all filesnames within the first x amount of pages
+    while current_page <= max_pages:
+        if current_page == 0:
+            media_items = response.get('mediaItems')
+            next_token = response.get('nextPageToken')
+        else:
+            response = service.mediaItems().list(
+                pageSize=page_size,
+                pageToken=next_token
+                ).execute()
+            media_items = response.get('mediaItems')
+            next_token = response.get('nextPageToken')
+        for media_item in media_items:
+            list_service_filenames.append(media_item.get('filename'))
+        current_page += 1
+    for filename in files:
+        filenames = [filename + end for end in ending]
+        for new_filename in filenames:
+            if new_filename in list_service_filenames:
+                print(f"Filename: {new_filename}")
+                fileupdate.update_uploaded(filename, ending)
+
+
+def convert_credential(filename: str) -> Credentials:
+    """
+    converts the dictionary from fileupdate into the credentials object
+
+    Params:
+    filename: str of the filename
+
+    Returns:
+    Credentials: a credentials object
+    """
+    credential = Credentials.from_authorized_user_file(filename)
+    return credential
+
+
+def refresh_token(credential: Credentials) -> Credentials:
+    """
+    refreshes the token if it detects it's invalid or None
+
+    Params:
+    invalid_credential: an instance of the Crendentials that is expired
+
+    Returns:
+    Credentials: new, unexpired credentials
+    """
+    request = google.auth.transport.requests.Request()
+    credential.refresh(request)
+    return credential
+
+
+def main() -> None:
+    """
+    the main loop called every x minutes
+
+    Returns: None
+    """
+    # Checking if credential already exists
+    try:
+        credentials = convert_credential(fileupdate.get_credential())
+        fileupdate.write_log("Credentials Read!")
+    except KeyError:
+        credentials = get_credentials()
+        fileupdate.write_log("OAuth authorized")
+        fileupdate.write_credential(credentials)
+        fileupdate.write_log("Crendentials written")
+    # Checking if credentials are valid
+    if credentials is None or not credentials.valid:
+        credentials = refresh_token(credentials)
+        fileupdate.write_log("Credentials Refreshed!")
+    service = get_service(credentials)
+    # Actually checking if the files are uploaded
+    files_to_check = fileupdate.get_unuploaded()
+    check_files(files_to_check[0], files_to_check[1], service)
+    fileupdate.write_log("Check Ran")
