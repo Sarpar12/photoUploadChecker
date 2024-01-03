@@ -48,7 +48,7 @@ def create_json() -> None:
             "copyDirectory" : copydirectory,
             "secrets" : secretslocation,
             "credential": "",
-            "deleteOriginal": False
+            "deleteOriginal": "False"
         }
     with open(CONFIG_FILE_NAME, 'w', encoding='utf-8') as file:
         json.dump(config, file, indent=2)
@@ -97,7 +97,7 @@ def change_delete_pref(preference = False) -> None:
     """
     with open(CONFIG_FILE_NAME, 'r', encoding='UTF-8') as file:
         data = json.load(file)
-        data["deleteOriginal"] = preference
+        data['deleteOriginal'] = f"{preference}"
     with open(CONFIG_FILE_NAME, 'w', encoding='UTF-8') as new_file:
         json.dump(data, new_file, indent=2)
 
@@ -111,7 +111,10 @@ def get_delete_pref() -> bool:
     """
     with open(CONFIG_FILE_NAME, 'r', encoding='UTF-8') as file:
         data = json.load(file)
-    return data["deleteOriginal"]
+    bool_val = data['deleteOriginal']
+    if bool_val == "False":
+        return False
+    return True
 
 
 def write_credential(credential) -> None:
@@ -443,15 +446,16 @@ def delete_images(delete_original: bool, filename: str) -> None:
     """
     copy_image_path = Path(f"{get_directories()[1]+filename}")
     copy_image_path.unlink()
+    write_log(f"WRITE: {filename} deleted!")
     if delete_original:
         original_image_path = Path(f"{get_directories()[0]+filename}")
         original_image_path.unlink()
-    return None
+        write_log(f"WRITE: {filename} deleted!")
 
 
 def delete_uploaded() -> None:
     """
-    deletes images that are already 
+    deletes images that are already uploaded
 
     Returns: None
     """

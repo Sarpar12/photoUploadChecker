@@ -4,6 +4,7 @@ main file that runs everything
 import threading
 import time
 from src import syncfolder
+from src import apicall
 
 def main() -> None:
     """
@@ -12,20 +13,16 @@ def main() -> None:
 
     Returns: None
     """
-    # Creates database, config, and log files
     syncfolder.init_files()
-
     # Create a thread for syncfolder.main
     sync_thread = threading.Thread(target=syncfolder.main)
-
     try:
         # Start the sync folder thread
         sync_thread.start()
-
         # Placeholder Loop
         while True:
-            time.sleep(1000)
-
+            time.sleep(1800)
+            apicall.check()
     except KeyboardInterrupt:
         # Handle keyboard interruption (Ctrl+C)
         print("Database monitoring stopped")
