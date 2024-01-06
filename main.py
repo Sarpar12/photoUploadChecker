@@ -1,7 +1,7 @@
 """
 main file that runs everything
 """
-import threading
+from threading import Thread, Event
 import time
 from src import syncfolder
 from src import apicall
@@ -14,21 +14,17 @@ def main() -> None:
     Returns: None
     """
     syncfolder.init_files()
-    # Create a thread for syncfolder.main
-    sync_thread = threading.Thread(target=syncfolder.main)
+    stop_event = Event()
+    sync_thread = Thread(target=syncfolder.main, args=(stop_event,))
     try:
-        # Start the sync folder thread
         sync_thread.start()
-        # Placeholder Loop
         while True:
             time.sleep(1800)
             apicall.check()
     except KeyboardInterrupt:
-        # Handle keyboard interruption (Ctrl+C)
         print("Database monitoring stopped")
-        print("File monitoring stopped.")
+        stop_event.set()
     finally:
-        # Wait for the sync folder thread to finish
         sync_thread.join()
 
 if __name__ == "__main__":

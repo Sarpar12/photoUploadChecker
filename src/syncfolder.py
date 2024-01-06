@@ -2,6 +2,8 @@
 this module syncs the the original and copy directories,
 writes that to log, and adds it to the database
 """
+from threading import Thread, Event
+import time
 import shutil
 import pyinotify
 from src import fileupdate
@@ -94,7 +96,7 @@ def parse_file_name(pathname: str) -> str:
     return pathname[pathname.rindex("/")+1:]
 
 
-def convert_time(time: str) -> str:
+def convert_time(input_time: str) -> str:
     """
     converts from military time 24:00:00 to civilian time
 
@@ -105,7 +107,7 @@ def convert_time(time: str) -> str:
     str: converted time(ie: 11:30:29 PM)
     """
     ending = "AM"
-    times = time.split(":")
+    times = input_time.split(":")
     if times[0] > 12:
         times[0] = times[0] % 12
         ending = "PM"
@@ -122,33 +124,64 @@ def init_files() -> None:
         fileupdate.create_json()
     fileupdate.init_db()
 
+def monitoring_thread(stop_flag: Event):
+    """
+    The monitoring thread that runs the notifier loop.
 
-def main():
+    Args:
+    stop_event: Event object to signal the thread to stop
     """
-    the main loop that runs forever
-    """
-    # Creates database, config, and log files
-    init_files()
-    # Initialize INotify
     watch_manager = pyinotify.WatchManager()
     handler = EventHandler()
     notifier = pyinotify.Notifier(watch_manager, handler)
 
     # Watch for IN_CREATE and IN_DELETE events
-    # Disabling no-member checks because it clearly works so there is a member
-    # pylint: disable=no-member
     watch_manager.add_watch(
             fileupdate.get_directories()[0],
+            # pylint: disable=no-member
             pyinotify.IN_DELETE | pyinotify.IN_MOVED_TO
         )
 
     try:
         # Start monitoring
-        notifier.loop()
+        notifier.loop(callback=lambda notifier: not stop_flag.is_set(), timeout_ms=1000)
     except KeyboardInterrupt:
         # Handle keyboard interruption (Ctrl+C)
         print("Monitoring stopped.")
+    finally:
+        # Stop monitoring when the thread is signaled to stop
         notifier.stop()
 
+
+def main(stop_flag: Event):
+    """
+    The main loop that runs forever.
+
+    Args:
+    stop_event: Event object to signal the thread to stop
+    """
+    # Creates database, config, and log files
+    init_files()
+
+    # Create a thread for monitoring
+    monitor_thread = Thread(target=monitoring_thread, args=(stop_flag,))
+    monitor_thread.start()
+
+    try:
+        # Periodically check if the stop event is set
+        while not stop_flag.is_set():
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        # Handle keyboard interruption (Ctrl+C)
+        print("Main thread stopped.")
+
+    finally:
+        # Set the event to signal the monitoring thread to stop
+        stop_flag.set()
+        # Wait for the monitoring thread to finish
+        monitor_thread.join()
+
 if __name__ == "__main__":
-    main()
+    stop_event = Event()
+    main(stop_event)

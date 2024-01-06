@@ -446,6 +446,7 @@ def delete_images(delete_original: bool, filename: str) -> None:
     """
     copy_image_path = Path(f"{get_directories()[1]+filename}")
     copy_image_path.unlink()
+    update_deleted(filename)
     write_log(f"WRITE: {filename} deleted!")
     if delete_original:
         original_image_path = Path(f"{get_directories()[0]+filename}")
