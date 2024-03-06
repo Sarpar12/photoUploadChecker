@@ -11,7 +11,7 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 import google.auth.transport.requests
-# Used in the code snippet from the below uri, I disabled it
+# Used in the code snippet from the below uri, disabled because it was wonky without it
 # https://google-auth.readthedocs.io/en/latest/reference/google.auth.transport.requests.html
 # pylint: disable=unused-import
 import requests
@@ -198,7 +198,7 @@ def refresh_token(credential: Credentials) -> Credentials:
     return credential
 
 
-def main() -> None:
+def check() -> None:
     """
     the main loop called every x minutes
 
@@ -207,18 +207,20 @@ def main() -> None:
     # Checking if credential already exists
     try:
         credentials = convert_credential(fileupdate.get_credential())
-        fileupdate.write_log("Credentials Read!")
+        fileupdate.write_log("READ: Credentials Read!")
     except KeyError:
         credentials = get_credentials()
-        fileupdate.write_log("OAuth authorized")
+        fileupdate.write_log("STATUS: OAuth authorized")
         fileupdate.write_credential(credentials)
-        fileupdate.write_log("Crendentials written")
+        fileupdate.write_log("WRITE: Crendentials written")
     # Checking if credentials are valid
     if credentials is None or not credentials.valid:
         credentials = refresh_token(credentials)
-        fileupdate.write_log("Credentials Refreshed!")
+        fileupdate.write_credential(credentials)
+        fileupdate.write_log("WRITE: Credentials Refreshed!")
     service = get_service(credentials)
     # Actually checking if the files are uploaded
     files_to_check = fileupdate.get_unuploaded()
     check_files(files_to_check[0], files_to_check[1], service)
+    fileupdate.delete_uploaded()
     fileupdate.write_log("Check Ran")
